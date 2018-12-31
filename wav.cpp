@@ -59,6 +59,12 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    /*********************************************************
+     It reads the wavFile up to 1*headersize and put the result
+     inside the memory structure defined by wavHeader struct.
+     This way we can access to all metadata information in the wav file
+     and also move the reading pointer to the start of PCM data
+    ************************************************************/
     //Read the header
     size_t bytesRead = fread(&wavHeader, 1, headerSize, wavFile);
     cout << "Header Read " << bytesRead << " bytes." << endl;
@@ -68,14 +74,44 @@ int main(int argc, char* argv[])
         uint16_t bytesPerSample = wavHeader.bitsPerSample / 8;      //Number     of bytes per sample
         uint64_t numSamples = wavHeader.ChunkSize / bytesPerSample; //How many samples are in the wav file?
         static const uint16_t BUFFER_SIZE = 4096;
-        int8_t* buffer = new int8_t[BUFFER_SIZE];
-        while ((bytesRead = fread(buffer, sizeof buffer[0], BUFFER_SIZE / (sizeof buffer[0]), wavFile)) > 0)
+        //int8_t* buffer_byte = new int8_t[BUFFER_SIZE];
+        int16_t* buffer_word = new int16_t[BUFFER_SIZE];
+        int16_t* buffer_pcm_out = new int16_t[BUFFER_SIZE*8];
+        size_t wordsRead;
+        int32_t buff_cnt;
+        buff_cnt = 0;
+        // while ((bytesRead = fread(buffer_byte, sizeof buffer_byte[0], BUFFER_SIZE / (sizeof buffer_byte[0]), wavFile)) > 0)
+        // {
+        //     /** DO SOMETHING WITH THE WAVE DATA HERE **/
+        //     cout << "Read " << bytesRead << " bytes." << endl;
+        // }
+        while((wordsRead = fread(buffer_word, sizeof(buffer_word[0]), BUFFER_SIZE/ (sizeof(buffer_word[0])), wavFile )) > 0)
         {
-            /** DO SOMETHING WITH THE WAVE DATA HERE **/
-            cout << "Read " << bytesRead << " bytes." << endl;
+            
+            cout<< "Read " << wordsRead << " 16bits words." << endl;
+            cout<<buff_cnt+1<< " time(s) the buffer filled"<<endl;
+
+            for(int i=0; i<BUFFER_SIZE; i++)
+            {
+            // It seems buffer_word does not capture everythin
+            buffer_pcm_out[i+((BUFFER_SIZE*buff_cnt)+1)]=(buffer_word[i]);
+
+            }
+            buff_cnt++;
+
         }
-        delete [] buffer;
-        buffer = nullptr;
+
+        FILE* outFile;
+        outFile = fopen("output.wav","wb");
+        fwrite(buffer_pcm_out,sizeof(int16_t),/*sizeof(buffer_pcm_out)*/(BUFFER_SIZE*10),outFile);
+        fclose(outFile);
+
+        //delete [] buffer_byte;
+        delete [] buffer_word;
+        delete [] buffer_pcm_out;
+        //buffer_byte = nullptr;
+        buffer_word = nullptr;
+        buffer_pcm_out = nullptr;
         filelength = getFileSize(wavFile);
 
         cout << "File is                    :" << filelength << " bytes." << endl;
@@ -97,6 +133,7 @@ int main(int argc, char* argv[])
         cout << "Data string                :" << wavHeader.Subchunk2ID[0] << wavHeader.Subchunk2ID[1] << wavHeader.Subchunk2ID[2] << wavHeader.Subchunk2ID[3] << endl;
     }
     fclose(wavFile);
+    
     return 0;
 }
 
